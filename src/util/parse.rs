@@ -17,15 +17,15 @@ pub fn md_to_new_note(text: String) -> Result<NoteFromMd, UtilError>{
 pub fn note_to_md(note: Note, internal: Vec<Note>, external: Vec<Source>) -> String {
     let mut md_note = format!("# [{}] {}{}\n## References\n### Internal\n", note.id, note.title, note.contents);
 
-    for note in internal {
-        let reference = format!("- [{}] {}\n", note.id, note.title);
+    for (i, note) in internal.iter().enumerate() {
+        let reference = format!("{}. [{}] {}\n", i + 1, note.id, note.title);
         md_note.push_str(&reference);
     }
 
     md_note.push_str("\n### External\n");
 
     for source in external {
-        let reference = format!("- [{}] {}\n", source.id, source.title);
+        let reference = format!(" - [{}] {}\n", source.id, source.title);
         md_note.push_str(&reference);
     }
 

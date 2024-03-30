@@ -37,6 +37,9 @@ pub enum CliError {
     #[error("Object with provided id doesn't exist!")]
     ObjectNotFound,
 
+    #[error("The title of note cannot be empty!")]
+    NoteTitleEmpty,
+
     #[error(transparent)]
     Generic(#[from] anyhow::Error)
 }

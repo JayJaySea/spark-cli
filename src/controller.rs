@@ -31,6 +31,9 @@ impl Controller {
     fn add(&mut self, note_from_md: NoteFromMd) -> Result<&'static str, CliError> {
         let note: Note = (&note_from_md).into();
         let note_id = note.id.clone();
+        if note_from_md.title.trim().is_empty() {
+            return Err(CliError::NoteTitleEmpty)
+        }
 
         let tx = self.conn.transaction().unwrap();
         note.add(&tx)?;
@@ -132,7 +135,7 @@ impl Controller {
 
     fn get_note(&self, get_note: GetNote) -> Result<&'static str, CliError> {
         let note = Note::get_by_id(get_note.id, &self.conn)?
-            .ok_or(CliError::ObjectNotFound)?;
+            .ok_or(CliError::NoteNotFound)?;
         let internal = InternalReference::get_by_note_id(&note.id, &self.conn)?;
         let external = ExternalReference::get_by_note_id(&note.id, &self.conn)?;
         
@@ -174,19 +177,32 @@ impl Controller {
 
     }
 
-    fn set(&mut self, note_from_md: NoteFromMd) -> Result<&'static str, CliError> {
+    fn set(&mut self, mut note_from_md: NoteFromMd) -> Result<&'static str, CliError> {
         let msg = "Note set successfuly";
 
-        if note_from_md.id.is_none() {
-            self.add(note_from_md)?;
-            return Ok(msg);
+        match note_from_md.id {
+            Some(ref id) => {
+                let note = Note::get_by_id(id.clone(), &self.conn)?;
+
+                match note {
+                    Some(_) => self.update(note_from_md)?,
+                    None => self.add(note_from_md)?
+                };
+            },
+            None => {
+                let note = Note::get_by_title(note_from_md.title.clone(), &self.conn)?;
+
+                match note {
+                    Some(note) => {
+                        note_from_md.id = Some(note.id);
+                        self.update(note_from_md)?
+                    },
+                    None => self.add(note_from_md)?,
+                };
+            },
         }
 
-        let note = Note::get_by_id(note_from_md.id.clone().unwrap(), &self.conn);
-        match note {
-            Ok(_) => self.update(note_from_md)?,
-            Err(_) => self.add(note_from_md)?
-        };
+
 
         Ok(msg)
     }
