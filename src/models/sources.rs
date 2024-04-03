@@ -33,6 +33,18 @@ impl Source {
         Ok(())
     }
 
+    pub fn list(conn: &Connection) -> Result<Vec<Source>, DbError> {
+        let mut stmt = conn.prepare("select id, title from sources")?;
+        let notes: Result<Vec<Source>, rusqlite::Error> = stmt.query_map([], |row| {
+            Ok(Source {
+                id: row.get(0)?,
+                title: row.get(1)?,
+            })
+        })?.collect();
+
+        Ok(notes?)
+    }
+
     pub fn get_by_id(id: String, conn: &Connection) -> Result<Option<Source>, DbError> {
         let source = conn.query_row("select * from sources where id = ?1", [id], |row| {
             Ok(Source {

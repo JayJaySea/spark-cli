@@ -5,7 +5,7 @@ use console::style;
 use csv::Writer;
 use rusqlite::{Connection, Transaction};
 
-use crate::{cli::{error::CliError, subcommands::{GetNote, NoteFields, NoteList}}, models::{external::ExternalReference, internal::InternalReference, note::{Note, NoteListItem}, sources::Source}, util::{generate_id, parse::note_to_md, NoteFromMd, Reference}};
+use crate::{cli::{error::CliError, subcommands::{GetNote, NoteField, NoteFields, SourceField, SourceFields}}, models::{external::ExternalReference, internal::InternalReference, note::{Note, NoteListItem}, sources::Source}, util::{generate_id, parse::note_to_md, NoteFromMd, Reference}};
 
 
 pub struct Controller {
@@ -91,38 +91,97 @@ impl Controller {
 
     fn list(&self, args: &ArgMatches) -> Result<&'static str, CliError> {
         match args.subcommand() {
-            Some(("notes", args)) => self.list_notes(NoteList::try_from(args)?),
-            Some(("sources", args)) => self.list_sources(),
+            Some(("notes", args)) => self.list_notes(NoteFields::try_from(args)?),
+            Some(("sources", args)) => self.list_sources(SourceFields::try_from(args)?),
             _ => Ok("")
         }
     }
 
-    fn list_notes(&self, list: NoteList) -> Result<&'static str, CliError> {
+    fn list_notes(&self, fields: NoteFields) -> Result<&'static str, CliError> {
         let mut wtr = Writer::from_writer(vec![]);
         let notes = Note::list(&self.conn)?;
 
         for NoteListItem { id, title } in notes {
-            let mut record = vec![];
-            for item in &list.items {
-                match item {
-                    NoteFields::Id => record.push(&id),
-                    NoteFields::Title => record.push(&title)
-                }
+            let record = Self::note_item_to_record(&id, &title, &fields);
+
+            if Self::handle_single_column(&record) {
+                continue; 
             }
 
             wtr.write_record(&record)
                 .map_err(|_| CliError::InternalError)?;
         }
 
-        let contents = wtr.into_inner().map_err(|_| CliError::InternalError)?;
-        let contents = String::from_utf8(contents).map_err(|_| CliError::InvalidUtf8)?;
-        println!("{}", contents.trim());
+        Self::print_csv_record(wtr)?;
+
 
         Ok("")
     }
 
-    fn list_sources(&self) -> Result<&'static str, CliError> {
+    fn list_sources(&self, fields: SourceFields) -> Result<&'static str, CliError> {
+        let mut wtr = Writer::from_writer(vec![]);
+        let notes = Source::list(&self.conn)?;
+
+        for Source { id, title } in notes {
+            let record = Self::source_to_record(&id, &title, &fields);
+
+            if Self::handle_single_column(&record) {
+                continue; 
+            }
+
+            wtr.write_record(&record)
+                .map_err(|_| CliError::InternalError)?;
+        }
+
+        Self::print_csv_record(wtr)?;
+
+
         Ok("")
+    }
+
+    fn note_item_to_record<'a>(id: &'a str, title: &'a str, fields: &NoteFields) -> Vec<&'a str> {
+        let mut record = vec![];
+        for item in &fields.items {
+            match item {
+                NoteField::Id => record.push(id),
+                NoteField::Title => record.push(title)
+            }
+        }
+
+        record
+    }
+
+    fn source_to_record<'a>(id: &'a str, title: &'a str, fields: &SourceFields) -> Vec<&'a str> {
+        let mut record = vec![];
+        for item in &fields.items {
+            match item {
+                SourceField::Id => record.push(id),
+                SourceField::Title => record.push(title)
+            }
+        }
+
+        record
+    }
+
+    fn handle_single_column(record: &[&str]) -> bool {
+        if record.len() == 1 {
+            println!("{}", record[0]);
+            return true
+        }
+
+        false
+    }
+    
+    fn print_csv_record(wtr: Writer<Vec<u8>>) -> Result<(), CliError> {
+        let contents = wtr.into_inner().map_err(|_| CliError::InternalError)?;
+        let contents = String::from_utf8(contents).map_err(|_| CliError::InvalidUtf8)?;
+        let contents = contents.trim();
+
+        if !contents.is_empty() {
+            println!("{}", contents.trim());
+        }
+
+        Ok(())
     }
 
 

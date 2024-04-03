@@ -31,6 +31,10 @@ pub fn list_notes() -> Command {
 
 pub fn list_sources() -> Command {
     Command::new("sources")
+        .args([
+            arg!(--id "Show source id"), 
+            arg!(--title "Show source title")
+        ])
 }
 
 pub fn get() -> Command {
@@ -85,27 +89,27 @@ impl TryFrom<&ArgMatches> for NoteFromMd {
 }
 
 #[derive(Debug, Clone)]
-pub struct NoteList {
-    pub items: Vec<NoteFields>
+pub struct NoteFields {
+    pub items: Vec<NoteField>
 }
 
 #[derive(Debug, Clone)]
-pub enum NoteFields {
+pub enum NoteField {
     Id,
     Title
 }
 
-impl Default for NoteList {
+impl Default for NoteFields {
     fn default() -> Self {
         Self {
-            items: vec![NoteFields::Id, NoteFields::Title]
+            items: vec![NoteField::Id, NoteField::Title]
         }
     }
 }
 
-impl ParseArgs for NoteList {}
+impl ParseArgs for NoteFields {}
 
-impl TryFrom<&ArgMatches> for NoteList {
+impl TryFrom<&ArgMatches> for NoteFields {
     type Error = CliError;
 
     fn try_from(value: &ArgMatches) -> Result<Self, Self::Error> {
@@ -117,14 +121,61 @@ impl TryFrom<&ArgMatches> for NoteList {
         let list;
 
         list = if !title && !id {
-             NoteList::default()
+             NoteFields::default()
         }
         else {
              let mut items = Vec::new();
-             if id { items.push(NoteFields::Id) }
-             if title { items.push(NoteFields::Title)}
+             if id { items.push(NoteField::Id) }
+             if title { items.push(NoteField::Title)}
 
-             NoteList { items }
+             NoteFields { items }
+        };
+
+        Ok(list)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct SourceFields {
+    pub items: Vec<SourceField>
+}
+
+#[derive(Debug, Clone)]
+pub enum SourceField {
+    Id,
+    Title
+}
+
+impl Default for SourceFields {
+    fn default() -> Self {
+        Self {
+            items: vec![SourceField::Id, SourceField::Title]
+        }
+    }
+}
+
+impl ParseArgs for SourceFields {}
+
+impl TryFrom<&ArgMatches> for SourceFields {
+    type Error = CliError;
+
+    fn try_from(value: &ArgMatches) -> Result<Self, Self::Error> {
+        let id = Self::parse_option(value, "id")
+            .unwrap_or(false);
+        let title = Self::parse_option(value, "title")
+            .unwrap_or(false);
+
+        let list;
+
+        list = if !title && !id {
+             SourceFields::default()
+        }
+        else {
+             let mut items = Vec::new();
+             if id { items.push(SourceField::Id) }
+             if title { items.push(SourceField::Title)}
+
+             SourceFields { items }
         };
 
         Ok(list)
