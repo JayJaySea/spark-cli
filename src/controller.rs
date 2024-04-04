@@ -49,8 +49,13 @@ impl Controller {
 
     fn add_internal_reference(reference: &Reference, note_id: &str, tx: &Transaction) -> Result<(), CliError> {
         match (&reference.id, &reference.title) {
-            (Some(id), _) => InternalReference::new(generate_id(), note_id.to_string(), id.to_string())
-                                .add(&tx)?,
+            (Some(id), _) => {
+                if InternalReference::exists(note_id, &id, &tx)? {
+                    return Ok(())
+                }
+                InternalReference::new(generate_id(), note_id.to_string(), id.to_string())
+                                .add(&tx)?
+            },
             (_, Some(title)) => Self::add_internal_reference_by_title(title, note_id, tx)?,
             (None, None) => Err(CliError::InvalidReference)?
         }
@@ -61,6 +66,9 @@ impl Controller {
     fn add_internal_reference_by_title(title: &str, note_id: &str, tx: &Transaction) -> Result<(), CliError> {
         let note = Note::get_by_title(title.to_string(), &tx)?;
         if let Some(note) = note {
+            if InternalReference::exists(note_id, &note.id, &tx)? {
+                return Ok(())
+            }
             InternalReference::new(generate_id(), note_id.to_string(), note.id)
                 .add(&tx)?;
         }
@@ -70,8 +78,13 @@ impl Controller {
 
     fn add_external_reference(reference: &Reference, note_id: &str, tx: &Transaction) -> Result<(), CliError> {
         match (&reference.id, &reference.title) {
-            (Some(id), _) => ExternalReference::new(generate_id(), note_id.to_string(), id.to_string())
-                                .add(&tx)?,
+            (Some(id), _) => {
+                if ExternalReference::exists(note_id, &id, &tx)? {
+                    return Ok(())
+                }
+                ExternalReference::new(generate_id(), note_id.to_string(), id.to_string())
+                                .add(&tx)?
+            },
             (_, Some(title)) => Self::add_external_reference_by_title(title, note_id, tx)?,
             (None, None) => Err(CliError::InvalidReference)?
         };
@@ -82,6 +95,10 @@ impl Controller {
     fn add_external_reference_by_title(title: &str, note_id: &str, tx: &Transaction) -> Result<(), CliError> {
         let source = Source::get_by_title(title.to_string(), &tx)?;
         let source = source.unwrap_or(Source::create(generate_id(), title.to_string(), &tx)?);
+
+        if ExternalReference::exists(note_id, &source.id, &tx)? {
+            return Ok(())
+        }
 
         ExternalReference::new(generate_id(), note_id.to_string(), source.id)
             .add(&tx)?;

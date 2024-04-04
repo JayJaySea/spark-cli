@@ -79,4 +79,11 @@ impl InternalReference {
 
         Ok(())
     }
+
+    pub fn exists(note_id: &str, reference_id: &str, conn: &Connection) -> Result<bool, DbError> {
+        let mut statement = conn.prepare("select * from internal_references where note_id = ?1 and reference_id = ?2")?;
+        let exists = statement.exists([note_id, reference_id])?;
+
+        Ok(exists)
+    }
 }
